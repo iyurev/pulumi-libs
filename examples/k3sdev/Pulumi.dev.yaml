@@ -1,0 +1,5 @@
+config:
+  google-native:project: gothic-concept-349709
+  google-native:zone: us-central1-a
+  ssh:public-key: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKmSKFjQCh1hohQQJOWvxILjBceq1E+ZmrTAE90uQ6ST
+    iyurev@Yurevs-MacBook-Pro.local

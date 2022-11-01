@@ -2,6 +2,7 @@ package gcp
 
 import (
 	"bytes"
+	"strings"
 	"text/template"
 )
 
@@ -19,4 +20,8 @@ func RenderingTmpl(tmpl string, data interface{}) (string, error) {
 		return "", err
 	}
 	return textBuff.String(), nil
+}
+
+func CutOutDot(s string) string {
+	return strings.TrimSuffix(s, ".")
 }

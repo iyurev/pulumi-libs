@@ -7,7 +7,11 @@ import (
 
 func main() {
 	pulumi.Run(func(ctx *pulumi.Context) error {
-		out, err := k3sdev.NewK3sCluster()
+		newCluster, err := k3sdev.NewK3sCluster(ctx, "dev-k3s-cluster", 0)
+		if err != nil {
+			return err
+		}
+		ctx.Export("public_ip", newCluster.PublicIP)
 		return nil
 	})
 }
