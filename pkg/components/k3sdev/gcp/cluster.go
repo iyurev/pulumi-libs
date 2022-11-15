@@ -132,8 +132,9 @@ func NewK3SCluster(ctx *pulumi.Context, k3sCluster *types.K3sCluster, name strin
 		Tags: v1.TagsArgs{Items: tags},
 		Disks: v1.AttachedDiskArray{
 			v1.AttachedDiskArgs{
-				Boot: pulumi.BoolPtr(true),
-				Type: v1.AttachedDiskTypePersistent,
+				AutoDelete: pulumi.BoolPtr(true),
+				Boot:       pulumi.BoolPtr(true),
+				Type:       v1.AttachedDiskTypePersistent,
 				InitializeParams: v1.AttachedDiskInitializeParamsArgs{
 					SourceImage: vmConf.Image,
 					DiskType:    vmConf.DiskType,
