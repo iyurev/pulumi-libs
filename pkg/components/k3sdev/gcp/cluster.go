@@ -2,6 +2,7 @@ package gcp
 
 import (
 	_ "embed"
+	"errors"
 	"fmt"
 	cloudconf "github.com/iyurev/pulumi-libs/pkg/cloudinit"
 	"github.com/iyurev/pulumi-libs/pkg/components/k3sdev/types"
@@ -18,7 +19,8 @@ import (
 )
 
 var (
-	cloudConfigMetaKey = pulumi.StringPtr("user-data")
+	cloudConfigMetaKey   = pulumi.StringPtr("user-data")
+	ErrWrongInstanceSize = errors.New("wrong instance size")
 )
 
 const (
@@ -26,6 +28,7 @@ const (
 	MachineTypeMedium    = "medium"
 	MachineTypeStandard2 = "standard-2"
 	MachineTypeStandard4 = "standard-4"
+	MachineTypeStandard8 = "standard-8"
 
 	DiskTypeSSD      = "pd-ssd"
 	DiskTypeStandard = "pd-standard"
@@ -35,6 +38,22 @@ const (
 
 	OsUbuntuMinimal2022LTS = "projects/ubuntu-os-cloud/global/images/ubuntu-minimal-2204-jammy-v20220902"
 )
+
+func machineTypeFromConfig(instSize string) (string, error) {
+	switch instSize {
+	case "Micro":
+		return MachineTypeMedium, nil
+	case "Small":
+		return MachineTypeStandard2, nil
+	case "Medium":
+		return MachineTypeStandard4, nil
+	case "Large":
+		return MachineTypeStandard8, nil
+	default:
+		return "", ErrWrongInstanceSize
+	}
+
+}
 
 type VMConf struct {
 	Name         string
@@ -56,7 +75,10 @@ func NewK3SCluster(ctx *pulumi.Context, k3sCluster *types.K3sCluster, name strin
 	tags := pulumi.StringArray{
 		pulumi.String("dev-k3s-cluster"),
 	}
-	//Create a new ssh key par
+	dontDeleteDisk := config.GetBool(ctx, "k3s:dont-delete-disk")
+	instanceSize := config.Get(ctx, "k3s:instance-size")
+	_ = instanceSize
+	// Create a new ssh key par
 	key, err := tls.NewPrivateKey(ctx, "private-key", &tls.PrivateKeyArgs{
 		Algorithm: pulumi.String("RSA"),
 		RsaBits:   pulumi.IntPtr(4096),
@@ -120,6 +142,12 @@ func NewK3SCluster(ctx *pulumi.Context, k3sCluster *types.K3sCluster, name strin
 	if err != nil {
 		return err
 	}
+	mType, err := machineTypeFromConfig(instanceSize)
+	if err != nil {
+		return err
+	}
+	vmConf.setMachineType(mType)
+
 	vmArgs := &v1.InstanceArgs{
 		Metadata: v1.MetadataArgs{
 			Items: v1.MetadataItemsItemArray{
@@ -132,7 +160,7 @@ func NewK3SCluster(ctx *pulumi.Context, k3sCluster *types.K3sCluster, name strin
 		Tags: v1.TagsArgs{Items: tags},
 		Disks: v1.AttachedDiskArray{
 			v1.AttachedDiskArgs{
-				AutoDelete: pulumi.BoolPtr(true),
+				AutoDelete: pulumi.BoolPtr(dontDeleteDisk == false),
 				Boot:       pulumi.BoolPtr(true),
 				Type:       v1.AttachedDiskTypePersistent,
 				InitializeParams: v1.AttachedDiskInitializeParamsArgs{

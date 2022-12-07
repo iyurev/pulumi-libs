@@ -13,6 +13,7 @@ require (
 	github.com/pulumi/pulumi-tls/sdk/v4 v4.6.0 // indirect
 	github.com/santhosh-tekuri/jsonschema/v5 v5.0.0 // indirect
 	github.com/spf13/cast v1.3.1 // indirect
+	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c // indirect
 )
 
 replace github.com/iyurev/pulumi-libs => ../../
