@@ -16,6 +16,7 @@ import (
 	"github.com/pulumi/pulumi-tls/sdk/v4/go/tls"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi/config"
+	"log"
 )
 
 var (
@@ -49,6 +50,8 @@ func machineTypeFromConfig(instSize string) (string, error) {
 		return MachineTypeStandard4, nil
 	case "Large":
 		return MachineTypeStandard8, nil
+	case "":
+		return MachineTypeMedium, nil
 	default:
 		return "", ErrWrongInstanceSize
 	}
@@ -200,14 +203,22 @@ func NewK3SCluster(ctx *pulumi.Context, k3sCluster *types.K3sCluster, name strin
 	publicIP := vm.NetworkInterfaces.Index(pulumi.Int(0)).AccessConfigs().Index(pulumi.Int(0)).NatIP()
 	publicApiAddr := pulumi.Sprintf("https://%s:6443", publicIP)
 
+	sshConnectionHost := publicIP
+
 	if createDNSRecords {
-		apiDNSName := config.Get(ctx, "k3s:api-dns-name")
-		if !IsEmptyStr(apiDNSName) {
-			publicApiAddr = pulumi.Sprintf("https://%s.%s:6443", apiDNSName, CutOutDot(zoneDNSName))
+		records := make(map[string]pulumi.StringArray)
+		sshConnectionHost = pulumi.Sprintf("%s.%s", vm.Name, CutOutDot(zoneDNSName))
+		_, err := dns.NewResourceRecordSet(ctx, "kube-master", &dns.ResourceRecordSetArgs{
+			Name:        pulumi.Sprintf("%s.%s", vm.Name, zoneDNSName),
+			ManagedZone: pulumi.String(zoneName),
+			Type:        pulumi.StringPtr("A"),
+			Rrdatas:     pulumi.StringArray{publicIP},
+		}, pulumi.Parent(k3sCluster))
+		if err != nil {
+			return err
 		}
-		records := map[string]pulumi.StringArray{
-			apiDNSName: {publicIP},
-		}
+
+		publicApiAddr = pulumi.Sprintf("https://%s:6443", sshConnectionHost)
 
 		var advancedDNSRecords = make([]string, 0)
 		if err := config.GetObject(ctx, "k3s:advanced-dns-records", &advancedDNSRecords); err != nil {
@@ -218,17 +229,17 @@ func NewK3SCluster(ctx *pulumi.Context, k3sCluster *types.K3sCluster, name strin
 				records[advRec] = pulumi.StringArray{publicIP}
 			}
 		}
-		for name, addrs := range records {
-			newRec, err := dns.NewResourceRecordSet(ctx, fmt.Sprintf("ndns-add-a-record-%s", name), &dns.ResourceRecordSetArgs{
-				Name:        pulumi.Sprintf("%s.%s", name, zoneDNSName),
+		for dnsName, addrs := range records {
+			_, err := dns.NewResourceRecordSet(ctx, fmt.Sprintf("a-rec-%s", dnsName), &dns.ResourceRecordSetArgs{
+				Name:        pulumi.Sprintf("%s.%s", dnsName, zoneDNSName),
 				ManagedZone: pulumi.String(zoneName),
 				Type:        pulumi.StringPtr("A"),
 				Rrdatas:     addrs,
 			}, pulumi.Parent(k3sCluster))
 			if err != nil {
-				return err
+				log.Fatal(err)
 			}
-			_ = newRec
+
 		}
 		ctx.Export("dns_zone_name", pulumi.String(zoneDNSName))
 
@@ -246,7 +257,7 @@ func NewK3SCluster(ctx *pulumi.Context, k3sCluster *types.K3sCluster, name strin
 		return err
 	}
 	k3sCluster.KubeConfig = cmd.Stdout
-	k3sCluster.SSHConnStr = pulumi.Sprintf("ssh %s@%s", vmConf.OsUsername, publicIP)
+	k3sCluster.SSHConnStr = pulumi.Sprintf("ssh %s@%s", vmConf.OsUsername, sshConnectionHost)
 	k3sCluster.PublicIP = publicIP
 	k3sCluster.ApiPubAddr = publicApiAddr
 
@@ -258,6 +269,19 @@ func NewK3SCluster(ctx *pulumi.Context, k3sCluster *types.K3sCluster, name strin
 	if err != nil {
 		return err
 	}
+
+	_, err = local.NewCommand(ctx, "export-kube-env", &local.CommandArgs{
+		Create: pulumi.Sprintf("touch ./kube-env.sh && chmod +x kube-env.sh  && echo export KUBECONFIG=%s  > ./kube-env.sh", kbconfFilePath),
+		Delete: pulumi.Sprintf("rm -f ./kube-env.sh"),
+	})
+	_, err = local.NewCommand(ctx, "ssh-helper", &local.CommandArgs{
+		Create: pulumi.Sprintf("touch ./ssh-to-%s.sh && chmod +x ssh-to-%s.sh && echo  ssh %s@%s > ./ssh-to-%s.sh", vm.Name, vm.Name, vmConf.OsUsername, sshConnectionHost, vm.Name),
+		Delete: pulumi.Sprintf("rm -f  ./ssh-to-%s.sh", vm.Name),
+	})
+	if err != nil {
+		return err
+	}
+
 	_ = dumpKubeConfig
 
 	return nil

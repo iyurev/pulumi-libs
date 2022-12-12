@@ -4,8 +4,8 @@ go 1.17
 
 require (
 	github.com/iyurev/pulumi-libs v0.0.0-00010101000000-000000000000
-	github.com/pulumi/pulumi-kubernetes/sdk/v3 v3.22.1
-	github.com/pulumi/pulumi/sdk/v3 v3.44.2
+	github.com/pulumi/pulumi-kubernetes/sdk/v3 v3.23.0
+	github.com/pulumi/pulumi/sdk/v3 v3.48.0
 	go.mozilla.org/sops/v3 v3.7.3
 )
 

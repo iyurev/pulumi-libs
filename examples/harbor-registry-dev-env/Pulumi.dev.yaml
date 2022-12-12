@@ -1,9 +1,8 @@
 config:
   k3s:zone-dns-name: "lab.k7s.dev"
   k3s:zone-name: "lab-k7s-dev"
-  k3s:api-dns-name: "api"
-  k3s:dont-delete-disk: True
-  k3s:instance-size: Large
+  #k3s:dont-delete-disk: True
+  #k3s:instance-size: Large
   k3s:advanced-dns-records:
     - harbor
 
