@@ -13,18 +13,6 @@ func main() {
 			return err
 		}
 		_ = newCluster
-
-		// k8sProv, err := kubernetes.NewProvider(ctx, "k3s-provider", &kubernetes.ProviderArgs{
-		// 	Kubeconfig: newCluster.KubeConfig,
-		// })
-		// customTLS, err := decrypt.File("secrets/custom-tls.enc.yaml", "yaml")
-		// if err != nil {
-		// 	return err
-		// }
-		// traefikCR, err := yaml.NewConfigGroup(ctx, "traefik-conf-cr", &yaml.ConfigGroupArgs{
-		// 	YAML: []string{string(customTLS)},
-		// }, pulumi.Provider(k8sProv), pulumi.RetainOnDelete(true))
-		// _ = traefikCR
 		return nil
 	})
 

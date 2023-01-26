@@ -7,6 +7,7 @@ import (
 	cloudconf "github.com/iyurev/pulumi-libs/pkg/cloudinit"
 	"github.com/iyurev/pulumi-libs/pkg/components/k3sdev/types"
 	"github.com/iyurev/pulumi-libs/pkg/constants"
+	"github.com/iyurev/pulumi-libs/pkg/constants/gcp"
 	"github.com/iyurev/pulumi-libs/pkg/k3s"
 	"github.com/pulumi/pulumi-cloudinit/sdk/go/cloudinit"
 	"github.com/pulumi/pulumi-command/sdk/go/command/local"
@@ -140,7 +141,7 @@ func NewK3SCluster(ctx *pulumi.Context, k3sCluster *types.K3sCluster, name strin
 		},
 	}, pulumi.Parent(k3sCluster))
 	net, err := v1.LookupNetwork(ctx, &v1.LookupNetworkArgs{
-		Network: "default",
+		Network: gcp.DefaultNetwork,
 	})
 	if err != nil {
 		return err
